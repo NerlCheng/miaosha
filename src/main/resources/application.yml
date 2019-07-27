@@ -1,0 +1,5 @@
+server:
+  port: 8090
+#  mybatis 的默认配置
+mybatis:
+  mapper-locations: classpath:mapping/*.xml
