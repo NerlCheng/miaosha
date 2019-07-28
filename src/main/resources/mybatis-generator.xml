@@ -31,7 +31,9 @@
 
         <table tableName="user_info"  domainObjectName="UserDO" enableCountByExample="false"
         enableUpdateByExample="false" enableDeleteByExample="false"
-        enableSelectByExample="false" selectByExampleQueryId="false"></table>
+        enableSelectByExample="false" selectByExampleQueryId="false">
+
+        </table>
         <table tableName="user_password"  domainObjectName="UserPasswordDO" enableCountByExample="false"
                enableUpdateByExample="false" enableDeleteByExample="false"
                enableSelectByExample="false" selectByExampleQueryId="false"></table>
