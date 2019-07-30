@@ -129,10 +129,10 @@ public class UserController extends baseController {
 
         //用户登陆服务,用来校验用户登陆是否合法
         UserModel userModel = userService.validateLogin(telphone, this.EncodeByMd5(password));
-//        //将登陆凭证加入到用户登陆成功的session内
-//        this.httpServletRequest.getSession().setAttribute("IS_LOGIN",true);
-//        this.httpServletRequest.getSession().setAttribute("LOGIN_USER",userModel);
-//
+        //将登陆凭证加入到用户登陆成功的session内
+        this.httpServletRequest.getSession().setAttribute("IS_LOGIN",true);
+        this.httpServletRequest.getSession().setAttribute("LOGIN_USER",userModel);
+
         return CommonReturnType.create(null);
     }
 
