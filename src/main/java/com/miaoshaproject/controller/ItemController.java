@@ -5,6 +5,7 @@ import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.response.CommonReturnType;
 import com.miaoshaproject.service.CacheService;
 import com.miaoshaproject.service.ItemService;
+import com.miaoshaproject.service.PromoService;
 import com.miaoshaproject.service.model.ItemModel;
 import org.joda.time.format.DateTimeFormat;
 import org.springframework.beans.BeanUtils;
@@ -32,6 +33,8 @@ public class ItemController extends baseController {
     private RedisTemplate redisTemplate;
     @Autowired
     private CacheService cacheService;
+    @Autowired
+    private PromoService promoService;
     //创建商品的controller
     @RequestMapping(value = "/create",method = {RequestMethod.POST},consumes={CONTENT_TYPE_FORMED})
     @ResponseBody
@@ -73,7 +76,7 @@ public class ItemController extends baseController {
                 itemModel = itemService.getItemById(id);
                 //设置itemModel到redis内
                 redisTemplate.opsForValue().set("item_"+id,itemModel);
-                redisTemplate.expire("item_"+id,10, TimeUnit.MINUTES);
+                redisTemplate.expire("item_"+id,2, TimeUnit.MINUTES);
             }
             //填充本地缓存
             cacheService.setCommonCache("item_"+id,itemModel);
@@ -117,5 +120,14 @@ public class ItemController extends baseController {
             itemVO.setPromoStatus(0);
         }
         return itemVO;
+    }
+
+
+    @RequestMapping(value = "/publishpromo",method = {RequestMethod.GET})
+    @ResponseBody
+    public CommonReturnType publishpromo(@RequestParam(name = "id")Integer id){
+        promoService.publishPromo(id);
+        return CommonReturnType.create(null);
+
     }
 }

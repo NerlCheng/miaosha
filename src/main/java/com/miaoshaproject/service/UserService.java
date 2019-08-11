@@ -11,6 +11,7 @@ public interface UserService {
     UserModel getUserById(Integer id);
     void register(UserModel userModel) throws BusinessException;
 
+    UserModel getUserByidIncache(Integer id);
     /*
 //    telphone:用户注册手机
 //    password:用户加密后的密码

@@ -13,6 +13,8 @@ public interface ItemService {
     //创建商品
     ItemModel createItem(ItemModel itemModel) throws BusinessException;
 
+//    item与promo model 缓存模型
+    ItemModel getItemByIdInCache(Integer id);
     //商品列表浏览
     List<ItemModel> listItem();
 

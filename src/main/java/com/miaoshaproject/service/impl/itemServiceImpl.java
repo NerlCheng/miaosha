@@ -14,12 +14,14 @@ import com.miaoshaproject.validator.ValidationResult;
 import com.miaoshaproject.validator.ValidatorImpl;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -40,7 +42,8 @@ public class itemServiceImpl implements ItemService {
 
     @Autowired
     private PromoService promoService;
-
+    @Autowired
+    private RedisTemplate redisTemplate;
     private ItemDO convertItemDOFromItemModel(ItemModel itemModel) {
         if (itemModel == null) {
             return null;
@@ -83,6 +86,18 @@ public class itemServiceImpl implements ItemService {
     }
 
     @Override
+    public ItemModel getItemByIdInCache(Integer id) {
+        ItemModel itemModel= (ItemModel) redisTemplate.opsForValue().get("item_validate_"+id);
+        if (itemModel==null){
+            itemModel=this.getItemById(id);
+            redisTemplate.opsForValue().set("item_validate_"+id,itemModel);
+            redisTemplate.expire("item_validate_"+id,10, TimeUnit.MINUTES);
+        }
+
+        return itemModel;
+    }
+
+    @Override
     public List<ItemModel> listItem() {
         List<ItemDO> itemDOList =itemDOMapper.listItem();
         List<ItemModel> itemModelList=itemDOList.stream().map(itemDO -> {
@@ -113,12 +128,19 @@ public class itemServiceImpl implements ItemService {
 
     @Override
     public boolean decreaseStock(Integer itemId, Integer amount) throws BusinessException {
-        int affectedRow =  itemStockDOMapper.decreaseStock(itemId,amount);
-        if(affectedRow > 0){
+        long result = redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount.intValue() * -1);
+        if(result >0){
+            //更新库存成功
+            return true;
+        }else if(result == 0){
+            //打上库存已售罄的标识
+            redisTemplate.opsForValue().set("promo_item_stock_invalid_"+itemId,"true");
+
             //更新库存成功
             return true;
         }else{
             //更新库存失败
+//            increaseStock(itemId,amount);
             return false;
         }
     }
