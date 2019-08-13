@@ -3,7 +3,9 @@ package com.miaoshaproject.controller;
 import com.alibaba.druid.util.StringUtils;
 import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.error.EmBusinessError;
+import com.miaoshaproject.mq.MqProducer;
 import com.miaoshaproject.response.CommonReturnType;
+import com.miaoshaproject.service.ItemService;
 import com.miaoshaproject.service.OrderService;
 import com.miaoshaproject.service.model.OrderModel;
 import com.miaoshaproject.service.model.UserModel;
@@ -29,7 +31,10 @@ public class OrderController extends baseController {
 
     @Autowired
     private RedisTemplate redisTemplate;
-
+    @Autowired
+    private MqProducer mqProducer;
+    @Autowired
+    private ItemService itemService;
     //封装下单请求
     @RequestMapping(value = "/createorder",method = {RequestMethod.POST},consumes={CONTENT_TYPE_FORMED})
     @ResponseBody
@@ -47,11 +52,19 @@ public class OrderController extends baseController {
             throw new BusinessException(EmBusinessError.USER_NOT_LOGIN,"用户还未登陆，不能下单");
         }
 
+        //判断是否库存已售罄，若对应的售罄key存在，则直接返回下单失败
+        if(redisTemplate.hasKey("promo_item_stock_invalid_"+itemId)){
+            throw new BusinessException(EmBusinessError.STOCK_NOT_ENOUGH);
+        }
+    //加入库存流水init状态
+        String stockLogId = itemService.initStockLog(itemId,amount);
 
         //UserModel userModel = (UserModel)httpServletRequest.getSession().getAttribute("LOGIN_USER");
 
-        OrderModel orderModel = orderService.createOrder(userModel.getId(),itemId,promoId,amount);
-
+//        OrderModel orderModel = orderService.createOrder(userModel.getId(),itemId,promoId,amount);
+        if(!mqProducer.transactionAsyncReduceStock(userModel.getId(),itemId,promoId,amount,stockLogId)){
+            throw new BusinessException(EmBusinessError.UNKNOWN_ERROR,"下单失败");
+        }
         return CommonReturnType.create(null);
     }
 }

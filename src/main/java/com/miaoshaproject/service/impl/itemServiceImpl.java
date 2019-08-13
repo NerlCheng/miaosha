@@ -2,10 +2,13 @@ package com.miaoshaproject.service.impl;
 
 import com.miaoshaproject.dao.ItemDOMapper;
 import com.miaoshaproject.dao.ItemStockDOMapper;
+import com.miaoshaproject.dao.StockLogDOMapper;
 import com.miaoshaproject.dataobject.ItemDO;
 import com.miaoshaproject.dataobject.ItemStockDO;
+import com.miaoshaproject.dataobject.StockLogDO;
 import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.error.EmBusinessError;
+import com.miaoshaproject.mq.MqProducer;
 import com.miaoshaproject.service.ItemService;
 import com.miaoshaproject.service.PromoService;
 import com.miaoshaproject.service.model.ItemModel;
@@ -21,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -44,6 +48,13 @@ public class itemServiceImpl implements ItemService {
     private PromoService promoService;
     @Autowired
     private RedisTemplate redisTemplate;
+    @Autowired
+    private MqProducer mqProducer;
+
+    @Autowired
+    private StockLogDOMapper stockLogDOMapper;
+
+
     private ItemDO convertItemDOFromItemModel(ItemModel itemModel) {
         if (itemModel == null) {
             return null;
@@ -127,6 +138,7 @@ public class itemServiceImpl implements ItemService {
     }
 
     @Override
+    @Transactional
     public boolean decreaseStock(Integer itemId, Integer amount) throws BusinessException {
         long result = redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount.intValue() * -1);
         if(result >0){
@@ -140,14 +152,44 @@ public class itemServiceImpl implements ItemService {
             return true;
         }else{
             //更新库存失败
-//            increaseStock(itemId,amount);
+            increaseStock(itemId,amount);
             return false;
         }
+    }
+//库存回补
+    @Override
+    public boolean increaseStock(Integer itemId, Integer amount) throws BusinessException {
+        long result = redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount.intValue());
+        return true;
     }
 
     @Override
     public void increaseSales(Integer itemId, Integer amount) throws BusinessException {
         itemDOMapper.increaseSales(itemId,amount);
+    }
+//异步更新库存
+    @Override
+    public boolean asyncDecreaseStock(Integer itemId, Integer amount) {
+
+        boolean mqResult= mqProducer.asyncReduceStock(itemId,amount);
+
+        return mqResult;
+    }
+
+    //初始化对应的库存流水
+    @Override
+    @Transactional
+    public String initStockLog(Integer itemId, Integer amount) {
+        StockLogDO stockLogDO = new StockLogDO();
+        stockLogDO.setItemId(itemId);
+        stockLogDO.setAmount(amount);
+        stockLogDO.setStockLogId(UUID.randomUUID().toString().replace("-",""));
+        stockLogDO.setStatus(1);
+
+        stockLogDOMapper.insertSelective(stockLogDO);
+
+        return stockLogDO.getStockLogId();
+
     }
 
     private ItemModel convertModelFromDataObject(ItemDO itemDO, ItemStockDO itemStockDO) {
