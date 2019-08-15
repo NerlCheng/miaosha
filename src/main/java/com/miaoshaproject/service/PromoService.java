@@ -10,4 +10,7 @@ public interface PromoService {
     PromoModel getPromoByItemId(Integer itemId);
     //活动发布
     void publishPromo(Integer promoId);
+
+//生产秒杀用的令牌
+public String generateSecondKillToken(Integer promoId,Integer itemId,Integer UserId);
 }
