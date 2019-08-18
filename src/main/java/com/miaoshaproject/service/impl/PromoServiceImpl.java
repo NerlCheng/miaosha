@@ -68,6 +68,10 @@ public class PromoServiceImpl implements PromoService {
         redisTemplate.opsForValue().set("promo_item_stock_"+itemModel.getId(), itemModel.getStock());
 //        设定redis存储时长，这个可以不写，根据业务需求而定
         redisTemplate.expire("promo_item_stock_"+itemModel.getId(),100, TimeUnit.HOURS);
+
+        //将大闸的限制数字设到redis内
+        redisTemplate.opsForValue().set("promo_door_count_"+promoId,itemModel.getStock().intValue() * 5);
+        redisTemplate.expire("promo_door_count_"+promoId,5,TimeUnit.HOURS);
     }
 
     @Override
@@ -106,7 +110,11 @@ public class PromoServiceImpl implements PromoService {
         if(userModel == null){
             return null;
         }
-
+        //获取秒杀大闸的count数量
+        long result = redisTemplate.opsForValue().increment("promo_door_count_"+promoId,-1);
+        if(result < 0){
+            return null;
+        }
 
 //生成token ，并放到redis里面
         String token= UUID.randomUUID().toString().replace("-","");
